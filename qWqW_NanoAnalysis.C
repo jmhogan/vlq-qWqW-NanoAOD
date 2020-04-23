@@ -93,8 +93,9 @@ void qWqW_NanoAnalysis::Loop(bool isSignal, bool isTTbar, Long64_t skipevents, L
   outputTree->Branch("isMuon",&isMuon,"isMuon/I");
 
   // weights
-  float pileupWeight, pileupWeightUp, pileupWeightDn;
+  float pileupWeight, pileupWeightUp, pileupWeightDn, topPtWeight;
   float HTSF_Pol, HTSF_PolUp, HTSF_PolDn;
+  float genTTbarMass;
   outputTree->Branch("genWeight",&genWeight,"genWeight/F");
   outputTree->Branch("pileupWeight",&pileupWeight,"pileupWeight/F");
   outputTree->Branch("pileupWeightUp",&pileupWeightUp,"pileupWeightUp/F");
@@ -105,6 +106,8 @@ void qWqW_NanoAnalysis::Loop(bool isSignal, bool isTTbar, Long64_t skipevents, L
   outputTree->Branch("HTSF_Pol",&HTSF_Pol,"HTSF_Pol/F");
   outputTree->Branch("HTSF_PolUp",&HTSF_PolUp,"HTSF_PolUp/F");
   outputTree->Branch("HTSF_PolDn",&HTSF_PolDn,"HTSF_PolDn/F");
+  outputTree->Branch("topPtWeight",&topPtWeight,"topPtWeight/F");
+  outputTree->Branch("genTTbarMass",&genTTbarMass,"genTTbarMass/F");
 
   //Lepton Information 
   float leppt, lepeta, lepphi, lepM;
@@ -399,6 +402,64 @@ void qWqW_NanoAnalysis::Loop(bool isSignal, bool isTTbar, Long64_t skipevents, L
     // ----------------------------------------------------------------------
     nEventsWeighted->Fill(genWeight/fabs(genWeight)); // + or - 1
     
+    // --------------------------------------------------------------------------
+    // Find generated tops and save masses, get reweighting
+    // ----------------------------------------------------------------------
+
+    genTTbarMass = -999;
+    topPtWeight = 1.0;    
+    TLorentzVector top, antitop;
+    bool gottop = false;
+    bool gotantitop = false;	
+    bool gottoppt = false;
+    bool gotantitoppt = false;
+    float toppt, antitoppt;
+    // std::bitset<16> statbits; // saving this for info
+
+    if(isTTbar){
+      for(unsigned int p = 0; p < nGenPart; p++) {
+	int id = GenPart_pdgId[p];
+	if (abs(id) != 6) continue;
+	if (GenPart_mass[p] < 10) continue; 
+
+	// statbits = std::bitset<16>(GenPart_statusFlags[p]);	// saving this for info
+	int motherid = GenPart_pdgId[GenPart_genPartIdxMother[p]];
+	if(abs(motherid) != 6){
+	  if (!gottop && id == 6){ 
+	    top.SetPtEtaPhiM(GenPart_pt[p], GenPart_eta[p], GenPart_phi[p], GenPart_mass[p]);
+	    gottop = true;
+	  }
+	  if (!gotantitop && id == -6){ 
+	    antitop.SetPtEtaPhiM(GenPart_pt[p], GenPart_eta[p], GenPart_phi[p], GenPart_mass[p]);
+	    gotantitop = true;
+	  }
+	}
+
+	if(GenPart_status[p] == 62){
+	  if (!gottoppt && id == 6){ 
+	    toppt = GenPart_pt[p];
+	    gottoppt = true;
+	  }
+	  if (!gotantitoppt && id == -6){ 
+	    antitoppt = GenPart_pt[p];
+	    gotantitoppt = true;
+	  }
+	}
+      }
+      if(gottop && gotantitop) genTTbarMass = (top+antitop).M();
+
+      if(gottoppt && gotantitoppt){
+	float SFtop = TMath::Exp(0.0615-0.0005*toppt);
+	float SFantitop = TMath::Exp(0.0615-0.0005*antitoppt);
+	topPtWeight = TMath::Sqrt(SFtop*SFantitop);
+      }
+    }	
+
+    // FILTER events based on output file name and calculated tt mass:
+    if(outputFileName.Contains("Mtt0") && genTTbarMass > 700) continue;
+    if(outputFileName.Contains("Mtt700") && (genTTbarMass <= 700 || genTTbarMass > 1000)) continue;
+    if(outputFileName.Contains("Mtt1000") && genTTbarMass <= 1000) continue; 
+
     // --------------------------------------------------------------------------
     // Check to make sure event isBWBW
     // ----------------------------------------------------------------------

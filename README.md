@@ -32,5 +32,4 @@ Probably best added by running NanoAOD-tools crab jobs to create custom NanoAOD 
 - Lepton scale factors and uncertainty
 
 To be added here in the macro:
-- Top pT reweighting
 - Probably trigger scale factors

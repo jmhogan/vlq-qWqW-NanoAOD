@@ -24,9 +24,9 @@ if os.path.exists(tarfile): print '*********** tar already exists! I ASSUME YOU 
 
 os.chdir(relbase)
 # YOU NEED TO EXCLUDE ANYTHING ELSE THAT MIGHT LIVE IN THE SAME CMSSW RELEASE, MY LIST IS SUPER LONG
-print 'tar --exclude="tmp/" --exclude="src/PhysicsTools" --exclude="src/analysisVLQ2019" --exclude="src/vlq-qWqW-NanoAOD/*.log" --exclude="src/vlq-qWqW-NanoAOD/*.root" --exclude="src/singleLepAnalyzer" --exclude="src/.git" -zcf '+tarfile+' ./*'
+print 'tar --exclude="tmp/" --exclude="src/PhysicsTools" --exclude="src/analysisVLQ2019" --exclude="src/vlq-qWqW-NanoAOD/*.log" --exclude="src/vlq-qWqW-NanoAOD/*.root" --exclude="src/bwbw_2018" --exclude="src/.git" -zcf '+tarfile+' ./*'
 
-os.system('tar --exclude="tmp/" --exclude="src/PhysicsTools" --exclude="src/analysisVLQ2019" --exclude="src/vlq-qWqW-NanoAOD/*.log" --exclude="src/vlq-qWqW-NanoAOD/*.root" --exclude="src/singleLepAnalyzer" --exclude="src/.git" -zcf '+tarfile+' ./*')
+os.system('tar --exclude="tmp/" --exclude="src/PhysicsTools" --exclude="src/analysisVLQ2019" --exclude="src/vlq-qWqW-NanoAOD/*.log" --exclude="src/vlq-qWqW-NanoAOD/*.root" --exclude="src/bwbw_2018" --exclude="src/.git" -zcf '+tarfile+' ./*')
 os.chdir(runDir)
 
 print 'Starting submission'
@@ -84,7 +84,7 @@ dirList = [
 for sample in dirList:
     print "------------ Sample:",sample,"---------------"
     outList = ['none']
-    #if 'TTTo' in sample: outList = ['Mtt0to700','Mtt700to1000','Mtt1000toInf']
+    if 'TTTo' in sample: outList = ['Mtt0to700','Mtt700to1000','Mtt1000toInf']
     
     isData = False
     if 'SingleMu' in sample or 'SingleEl' in sample or 'EGamma' in sample: isData = True
