@@ -11,8 +11,8 @@ start_time = time.time()
 ## USER-specific file paths
 relbase = '/uscms_data/d3/jmanagan/ErinHitFit/CMSSW_10_2_10/'
 tarfile = '/uscms_data/d3/jmanagan/qWqW_nano.tar'
-outDir='/store/user/jmanagan/NanoAODv6_1lep2018_040920_step1/'
-condorDir='/uscms_data/d3/jmanagan/NanoAODv6_1lep2018_040920_step1/'
+outDir='/store/user/jmanagan/NanoAODv6_1lep2018_051620_step1/'
+condorDir='/uscms_data/d3/jmanagan/NanoAODv6_1lep2018_051620_step1/'
 
 runDir=os.getcwd()
 
@@ -24,9 +24,9 @@ if os.path.exists(tarfile): print '*********** tar already exists! I ASSUME YOU 
 
 os.chdir(relbase)
 # YOU NEED TO EXCLUDE ANYTHING ELSE THAT MIGHT LIVE IN THE SAME CMSSW RELEASE, MY LIST IS SUPER LONG
-print 'tar --exclude="tmp/" --exclude="src/PhysicsTools" --exclude="src/analysisVLQ2019" --exclude="src/vlq-qWqW-NanoAOD/*.log" --exclude="src/vlq-qWqW-NanoAOD/*.root" --exclude="src/bwbw_2018" --exclude="src/.git" -zcf '+tarfile+' ./*'
+print 'tar --exclude="tmp/" --exclude="src/PhysicsTools" --exclude="src/analysisVLQ2019" --exclude="src/bwbw_2018" --exclude="src/vlq-qWqW-NanoAOD/*.log" --exclude="src/bwbw_2018" --exclude="src/.git" -zcf '+tarfile+' ./*'
 
-os.system('tar --exclude="tmp/" --exclude="src/PhysicsTools" --exclude="src/analysisVLQ2019" --exclude="src/vlq-qWqW-NanoAOD/*.log" --exclude="src/vlq-qWqW-NanoAOD/*.root" --exclude="src/bwbw_2018" --exclude="src/.git" -zcf '+tarfile+' ./*')
+os.system('tar --exclude="tmp/" --exclude="src/PhysicsTools" --exclude="src/analysisVLQ2019" --exclude="src/bwbw_2018" --exclude="src/vlq-qWqW-NanoAOD/*.log" --exclude="src/bwbw_2018" --exclude="src/.git" -zcf '+tarfile+' ./*')
 os.chdir(runDir)
 
 print 'Starting submission'
@@ -84,7 +84,7 @@ dirList = [
 for sample in dirList:
     print "------------ Sample:",sample,"---------------"
     outList = ['none']
-    if 'TTTo' in sample: outList = ['Mtt0to700','Mtt700to1000','Mtt1000toInf']
+    #if 'TTTo' in sample: outList = ['Mtt0to700','Mtt700to1000','Mtt1000toInf']
     
     isData = False
     if 'SingleMu' in sample or 'SingleEl' in sample or 'EGamma' in sample: isData = True
@@ -187,7 +187,7 @@ for sample in dirList:
                 jdf.write(
                     """use_x509userproxy = true
 universe = vanilla
-Executable = %(RUNDIR)s/runStep1Nano.sh
+Executable = %(RUNDIR)s/runCondorAnalysis.sh
 Should_Transfer_Files = YES
 WhenToTransferOutput = ON_EXIT
 Transfer_Input_Files = %(TARBALL)s

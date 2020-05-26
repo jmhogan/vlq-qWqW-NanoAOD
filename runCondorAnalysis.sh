@@ -19,7 +19,7 @@ echo "unpacking tar"
 tar -xf ../qWqW_nano.tar
 rm ../qWqW_nano.tar
 
-cd src/vlq_qWqW_NanoAOD/
+cd src/vlq-qWqW-NanoAOD/
 
 echo "cmsenv"
 eval `scramv1 runtime -sh`
@@ -31,7 +31,7 @@ root -l -b -q runAnalysis.C\(\"${infilename}\",\"${outfilename}\",${skipevents},
 
 echo "ROOT Files:"
 ls -l *.root
-
+rm puppiCorr.root
 # copy output to eos
 
 echo "xrdcp output for condor"
