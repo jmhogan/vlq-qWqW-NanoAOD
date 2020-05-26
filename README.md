@@ -16,13 +16,22 @@ scramv1 b
 
 ```
 git clone https://github.com/jmhogan/vlq-qWqW-NanoAOD.git 
-cd vlq-qWqW-NanoAOD.git
+cd vlq-qWqW-NanoAOD
+git clone -b 80X https://github.com/cms-jet/PuppiSoftdropMassCorrections.git
 ```
 - Find a NanoAOD file name to use as a test file
-- ROOT macro structure, add instructions for interactive test
+- Study qWqW_NanoAnalysis.C!
+```
+root -l -b -q runAnalysis.C\(\"root://cmsxrootd.fnal.gov//store/mc/...path../inputfile.root\",\"testoutputfile.root\",0,5000\) # skip 0 events, run 5000 events
+```
 
 # Condor job submission 
-- add instructions for LPC condor jobs
+- Edit runNanoAODJobs2018.py (or make a similar file) to have good input/output paths and NanoAOD samples. Currently the data is set to read from NanoAOD-tools output stored on the LPC EOS cluster. 
+- Check runCondorAnalysis.sh
+```
+voms-proxy-init -voms cms -valid 168:00
+python -u runNanoAODJobs2018.py >& submission.log &
+```
 
 # Missing analysis elements
 Probably best added by running NanoAOD-tools crab jobs to create custom NanoAOD (add settings/configs to TopHitFit-TLorentzVectors branch above?). 
