@@ -31,7 +31,7 @@ root -l -b -q runAnalysis.C\(\"${infilename}\",\"${outfilename}\",${skipevents},
 
 echo "ROOT Files:"
 ls -l *.root
-rm puppiCorr.root
+rm PuppiSoftdropMassCorrections/puppiCorr.root
 # copy output to eos
 
 echo "xrdcp output for condor"

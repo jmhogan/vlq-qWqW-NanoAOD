@@ -60,7 +60,7 @@ void qWqW_NanoAnalysis::Loop(bool isSignal, bool isTTbar, Long64_t skipevents, L
   // ---------------------------------------------------------------------------
   // PUPPI W Corrections File
   // ---------------------------------------------------------------------------
-  TFile* file = TFile::Open("puppiCorr.root","READ");
+  TFile* file = TFile::Open("PuppiSoftdropMassCorrections/puppiCorr.root","READ");
   TF1 *puppisd_corrGEN      = (TF1*)file->Get("puppiJECcorr_gen");
   TF1 *puppisd_corrRECO_cen = (TF1*)file->Get("puppiJECcorr_reco_0eta1v3");
   TF1 *puppisd_corrRECO_for = (TF1*)file->Get("puppiJECcorr_reco_1v3eta2v5");
@@ -399,6 +399,7 @@ void qWqW_NanoAnalysis::Loop(bool isSignal, bool isTTbar, Long64_t skipevents, L
   vector<unsigned int> bosons;
 
   RunHitFit HitFit("../TopQuarkAnalysis/TopHitFit/data/setting/RunHitFitConfiguration.txt",80.4,80.4,0);//,hitfitLepWMass_,hitfitHadWMass_,hitfitTopMass_);
+  HitFit.setPermConstraints(true, 100.0, 1000.0, 100.0, 200.0, 60.0, 100.0); // useSubjets, WptCut, stCut, lepbCut, hadbCut, mWmin, mWmax)
   
   // ----------------------------------------------------------------------------
   // RUN THE EVENT LOOP
