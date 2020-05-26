@@ -20,13 +20,11 @@ filelist = {
  'ST_s-channel_4f_leptonDecays_TuneCP5_13TeV-madgraph-pythia8_hadd.root':0,
  'ST_t-channel_antitop_4f_InclusiveDecays_TuneCP5_13TeV-powheg-madspin-pythia8_hadd.root':0,
  'ST_t-channel_top_4f_InclusiveDecays_TuneCP5_13TeV-powheg-madspin-pythia8_1_hadd.root':2,
- #'ST_t-channel_top_4f_InclusiveDecays_TuneCP5_13TeV-powheg-madspin-pythia8_hadd.root':0,
  'ST_tW_antitop_5f_inclusiveDecays_TuneCP5_13TeV-powheg-pythia8_hadd.root':0,
  'ST_tW_top_5f_inclusiveDecays_TuneCP5_13TeV-powheg-pythia8_hadd.root':0,
  'TTTo2L2Nu_TuneCP5_13TeV-powheg-pythia8_hadd.root':0,
  'TTToHadronic_TuneCP5_13TeV-powheg-pythia8_hadd.root':0,
  'TTToSemiLeptonic_TuneCP5_13TeV-powheg-pythia8_1_hadd.root':3,
- #'TTToSemiLeptonic_TuneCP5_13TeV-powheg-pythia8_hadd.root':0,
  'TprimeTprime_M-1000_TuneCP5_PSweights_13TeV-madgraph-pythia8_hadd.root':0,
  'TprimeTprime_M-1100_TuneCP5_PSweights_13TeV-madgraph-pythia8_hadd.root':0,
  'TprimeTprime_M-1200_TuneCP5_PSweights_13TeV-madgraph-pythia8_hadd.root':0,
@@ -50,14 +48,14 @@ from ROOT import TFile, TH1
 for filekey in sorted(filelist.keys()):
     print('-------------------------------------------------------')
     ## Put your file path here and below
-    rfile = TFile.Open('root://cmseos.fnal.gov//store/user/jmanagan/NanoAODv6_1lep2018_040920_step1haddsHTSF/'+filekey)
+    rfile = TFile.Open('root://cmseos.fnal.gov//store/user/jmanagan/NanoAODv6_1lep2018_051620_step1hadds/'+filekey)
     hist = rfile.Get("nEventsWeighted")
 
     if filelist[filekey] > 0:
         print 'Opening ',filelist[filekey],'files:'
         for ifile in range(2,filelist[filekey]+1):
             #print 'file #',ifile
-            tempfile = TFile.Open('root://cmseos.fnal.gov//store/user/jmanagan/NanoAODv6_1lep2018_040920_step1haddsHTSF/'+filekey.replace('_1_','_'+str(ifile)+'_'))
+            tempfile = TFile.Open('root://cmseos.fnal.gov//store/user/jmanagan/NanoAODv6_1lep2018_051620_step1hadds/'+filekey.replace('_1_','_'+str(ifile)+'_'))
             temphist = tempfile.Get("nEventsWeighted")
             temphist.SetDirectory(0)
             hist.Add(temphist)
@@ -68,9 +66,9 @@ for filekey in sorted(filelist.keys()):
     #newpdf = hist.GetBinContent(2)
 
     #if 'prime' not in filekey:
-    print(str(adjusted)+'. # from integral '+str(integral)+', file '+filekey)
+    print(str(adjusted)+' # from integral '+str(integral)+', file '+filekey)
     #else:
-    #    print(str(newpdf)+'. # from integral '+str(integral)+', file '+filekey)
+    #    print(str(newpdf)+' # from integral '+str(integral)+', file '+filekey)
 
 
 
