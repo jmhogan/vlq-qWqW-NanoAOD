@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>     // std::cout
 #include <algorithm>    // std::sort
+#include <TFile.h>
 #include <TH1.h>
 #include <TF1.h>
 #include <TRandom3.h>
@@ -40,19 +41,6 @@ bool sortinrev2(const pair<double, int> &a, const pair<double,int> &b)
 // ----------------------------------------------------------------------------
 void qWqW_NanoAnalysis::Loop(bool isSignal, bool isTTbar, Long64_t skipevents, Long64_t maxevents)
 {
-  //    jentry is the global entry number in the chain
-  //   ientry is the entry number in the current Tree
-  //  Note that the argument to GetEntry must be:
-  //    jentry for TChain::GetEntry
-  //    ientry for TTree::GetEntry and TBranch::GetEntry
-  //
-  //       To read only selected branches, Insert statements like:
-  // METHOD1:
-  //    fChain->SetBranchStatus("*",0);  // disable all branches
-  //    fChain->SetBranchStatus("branchname",1);  // activate branchname
-  // METHOD2: replace line
-  //    fChain->GetEntry(jentry);       //read all branches
-  //by  b_branchname->GetEntry(ientry); //read only this branch
   
   // ----------------------------------------------------------------------------
   // Variables for HITFIT
@@ -70,6 +58,15 @@ void qWqW_NanoAnalysis::Loop(bool isSignal, bool isTTbar, Long64_t skipevents, L
   auto newStart = start;
 
   // ---------------------------------------------------------------------------
+  // PUPPI W Corrections File
+  // ---------------------------------------------------------------------------
+  TFile* file = TFile::Open("puppiCorr.root","READ");
+  TF1 *puppisd_corrGEN      = (TF1*)file->Get("puppiJECcorr_gen");
+  TF1 *puppisd_corrRECO_cen = (TF1*)file->Get("puppiJECcorr_reco_0eta1v3");
+  TF1 *puppisd_corrRECO_for = (TF1*)file->Get("puppiJECcorr_reco_1v3eta2v5");
+  file->Close();  
+
+  // ---------------------------------------------------------------------------
   // OUTPUT FILE
   // ---------------------------------------------------------------------------
   TFile *outputFile;
@@ -79,7 +76,7 @@ void qWqW_NanoAnalysis::Loop(bool isSignal, bool isTTbar, Long64_t skipevents, L
   TH1D *nEventsWeighted = new TH1D("nEventsWeighted","nEventsWeighted",3,-1,2);
 
   TTree *outputTree = new TTree("Events","Events");
-      
+
   // ---------------------------------------------------------------------------
   // Define Branches
   // ---------------------------------------------------------------------------
@@ -144,8 +141,11 @@ void qWqW_NanoAnalysis::Loop(bool isSignal, bool isTTbar, Long64_t skipevents, L
   vector<float> FatJet_pt_ptordered;
   vector<float> FatJet_eta_ptordered;
   vector<float> FatJet_phi_ptordered;
+  vector<float> FatJet_tau21_ptordered;
   vector<float> FatJet_mass_ptordered;
   vector<float> FatJet_sdmass_ptordered;
+  vector<float> FatJet_sdmassraw_ptordered;
+  vector<float> FatJet_sdmasscorr_ptordered;
   vector<int> FatJet_index1_ptordered;
   vector<int> FatJet_index2_ptordered;
   outputTree->Branch("usesWtag",&usesWtag,"usesWtag/O");
@@ -155,8 +155,11 @@ void qWqW_NanoAnalysis::Loop(bool isSignal, bool isTTbar, Long64_t skipevents, L
   outputTree->Branch("FatJet_phi",&FatJet_phi_ptordered);
   outputTree->Branch("FatJet_mass",&FatJet_mass_ptordered);
   outputTree->Branch("FatJet_sdmass",&FatJet_sdmass_ptordered);
+  outputTree->Branch("FatJet_sdmassraw",&FatJet_sdmassraw_ptordered);
+  outputTree->Branch("FatJet_sdmasscorr",&FatJet_sdmasscorr_ptordered);
   outputTree->Branch("FatJet_index1",&FatJet_index1_ptordered);
   outputTree->Branch("FatJet_index2",&FatJet_index2_ptordered);
+  outputTree->Branch("FatJet_tau21",&FatJet_tau21_ptordered);
 
   //Subjets 
   vector<float> SubJet_pt_fjordered;
@@ -193,28 +196,56 @@ void qWqW_NanoAnalysis::Loop(bool isSignal, bool isTTbar, Long64_t skipevents, L
   //HITFIT
   float tMass;
   float chi2;
+  float probchi2;
   float sigmaM;
   float nJetsHitFit;
   float SLDivideST;
   outputTree->Branch("tMass",&tMass, "tMass/F");
   outputTree->Branch("chi2", &chi2, "chi2/F");
+  outputTree->Branch("probchi2", &probchi2, "probchi2/F");
   outputTree->Branch("sigmaM", &sigmaM, "sigmaM/F");
   outputTree->Branch("SLDivideST",&SLDivideST,"SLDivideST/F");
   outputTree->Branch("nJetsHitFit",&nJetsHitFit, "nJetsHitFit/F");
+
+  //Fitted Content
+  float fittedLepPt;
+  float fittedLepEta;
+  float fittedLepPhi;
+  float fittedLepMass;
+  float fittedMETPt;
+  float fittedMETEta;
+  float fittedMETPhi;
+  float fittedMETMass;
+  vector<float> fittedJetPt;
+  vector<float> fittedJetEta;
+  vector<float> fittedJetPhi;
+  vector<float> fittedJetMass;
+  outputTree->Branch("fittedLepPt",&fittedLepPt, "fittedLepPt/F");
+  outputTree->Branch("fittedLepEta",&fittedLepEta, "fittedLepEta/F");
+  outputTree->Branch("fittedLepPhi",&fittedLepPhi, "fittedLepPhi/F");
+  outputTree->Branch("fittedLepMass",&fittedLepMass, "fittedLepMass/F");
+  outputTree->Branch("fittedMETPt",&fittedMETPt, "fittedMETPt/F");
+  outputTree->Branch("fittedMETEta",&fittedMETEta, "fittedMETEta/F");
+  outputTree->Branch("fittedMETPhi",&fittedMETPhi, "fittedMETPhi/F");
+  outputTree->Branch("fittedMETMass",&fittedMETMass, "fittedMETMass/F");
+  outputTree->Branch("fittedJetPt",&fittedJetPt);
+  outputTree->Branch("fittedJetEta",&fittedJetEta);
+  outputTree->Branch("fittedJetPhi",&fittedJetPhi);
+  outputTree->Branch("fittedJetMass",&fittedJetMass);
 
   // ----------------------------------------------------------------------------
   // Define and initialize objects / cuts / efficiencies
   // ----------------------------------------------------------------------------
   
   float lepPtCut=55;
-  float elEtaCut=2.1;
+  float elEtaCut=2.5;
   float muEtaCut=2.4;
   float jetEtaCut=2.4;
   float ak8EtaCut=2.4;
   float ak8SJEtaCut=2.5;
   float jetPtCut=30;
   float ak8PtCut=200;
-  float metCut=30;
+  float metCut=50;
   int   nAK8jetsCut=0;
   int overlap1=0;
   int overlap2=0;
@@ -275,6 +306,11 @@ void qWqW_NanoAnalysis::Loop(bool isSignal, bool isTTbar, Long64_t skipevents, L
   int num996=0;
   int num995=0;
   int ntotal=0;
+  int nfailed=0;
+  int ngood=0;
+  int good2M=0;
+  int goodML=0;
+  int good1M=0;
   int numLowLepB=0;
   int numLowHadB=0;
   int numLowHadW=0;
@@ -382,13 +418,6 @@ void qWqW_NanoAnalysis::Loop(bool isSignal, bool isTTbar, Long64_t skipevents, L
 
     if(jentry%1000 == 0){
       cout << "On entry " << jentry << " of " << runthrough << endl; 
-       /*         auto currentTime = std::chrono::high_resolution_clock::now();
-		  std::chrono::duration<double> last10000 = currentTime - newStart;
-		  cout << "The last 1000 loops took: " << last10000.count() <<" seconds"<< endl;
-		  std::chrono::duration<double> elapsed = currentTime - start;
-		  cout << "Elapsed time: " << elapsed.count() << " seconds"<<endl;
-		  newStart =currentTime;
-       */
     }
      
     Long64_t ientry = LoadTree(jentry);
@@ -690,7 +719,7 @@ void qWqW_NanoAnalysis::Loop(bool isSignal, bool isTTbar, Long64_t skipevents, L
     
     
     //Cut out events without enough missing energy 
-    if(MET_pt<30){continue;}
+    if(MET_pt < metCut){continue;}
     passMET++;
     
     // ----------------------------------------------------------------------------
@@ -714,39 +743,21 @@ void qWqW_NanoAnalysis::Loop(bool isSignal, bool isTTbar, Long64_t skipevents, L
       // Basic cuts
       // ----------------------------------------------------------------------------
       
-      if(!(Jet_jetId[ijet] == 6 && Jet_pt[ijet]>jetPtCut && fabs(Jet_eta[ijet])<jetEtaCut)){continue;}
-
-      if(isElectron && ijet == Electron_jetIdx[indexOfTight]) continue;
-      if(isMuon && ijet == Muon_jetIdx[indexOfTight]) continue;
+      if(!(Jet_jetId[ijet] > 1 && Jet_pt[ijet]>jetPtCut && fabs(Jet_eta[ijet])<jetEtaCut)){continue;}
 
       if (Jet_btagDeepB[ijet] > 0.4184) NJetsDeepCSVmed += 1;
       if (Jet_btagDeepB[ijet] > 0.1241) NJetsDeepCSVloose += 1;
        
       //Checking overlapping with lepton -- ASKED ON B2G SELECTIONS HN about what's best
       jet_lv.SetPtEtaPhiM(Jet_pt[ijet],Jet_eta[ijet],Jet_phi[ijet],Jet_mass[ijet]);
-      // float deltaR = lepton_lv.DeltaR(jet_lv);
-      // float ptRel = lepton_lv.P()*(jet_lv.Vect().Cross(lepton_lv.Vect()).Mag()/jet_lv.P()/lepton_lv.P()); 
-      // if(deltaR < 0.4){
-      // 	nskipped += 1;
-      // 	if(deltaR1 < 0){
-      // 	  deltaR1 = deltaR;
-      // 	  ptRel1 = ptRel;
-      // 	  ind1 = ijet;
-      // 	}else{
-      // 	  if(deltaR2 < 0){
-      // 	    deltaR2 = deltaR;
-      // 	    ptRel2 = ptRel;
-      // 	    ind2 = ijet;
-      // 	  }else std::cout << "3rd close jet!" << std::endl;
-      // 	}
-      // 	continue;
-      // }
+      float deltaR = lepton_lv.DeltaR(jet_lv);
+      if(deltaR < 0.4) continue;
+
       listOfJets.push_back(std::make_pair(ijet, jet_lv));
       jetptindpair.push_back(std::make_pair(Jet_pt[ijet],ijet));
       NJets+=1;
       AK4HT+=Jet_pt[ijet];   
 
-      //cout << "In-loop: pT = " << Jet_pt[ijet] << ", bdisc = " << Jet_btagDeepB[ijet] << endl;
     }
     if(nskipped > 1){
       std::cout << "------------------------------------------------------------" << std::endl;
@@ -770,26 +781,14 @@ void qWqW_NanoAnalysis::Loop(bool isSignal, bool isTTbar, Long64_t skipevents, L
       // Basic cuts
       // --------------------------------------------------------------------------
       
-      if(!(FatJet_jetId[ijet] == 6 && FatJet_pt[ijet]>ak8PtCut && fabs(FatJet_eta[ijet])<ak8EtaCut && 
+      if(!(FatJet_jetId[ijet] > 1 && FatJet_pt[ijet]>ak8PtCut && fabs(FatJet_eta[ijet])<ak8EtaCut && 
 	   fabs(SubJet_eta[FatJet_subJetIdx1[ijet]])<ak8SJEtaCut && fabs(SubJet_eta[FatJet_subJetIdx2[ijet]])<ak8SJEtaCut)) {continue;}
       
       //Checking if overlapping with lepton
       ak8_lv.SetPtEtaPhiM(FatJet_pt[ijet],FatJet_eta[ijet],FatJet_phi[ijet],FatJet_mass[ijet]);
       float deltaR = lepton_lv.DeltaR(ak8_lv);
-      float ptRel = lepton_lv.P()*(ak8_lv.Vect().Cross(lepton_lv.Vect()).Mag()/ak8_lv.P()/lepton_lv.P());
-      if(deltaR < 0.6){ // && ptRel < 20){
-	nskipped += 1;
-	if(deltaR1 < 0){
-	  deltaR1 = deltaR;
-	  ptRel1 = ptRel;
-	}else{
-	  if(deltaR2 < 0){
-	    deltaR2 = deltaR;
-	    ptRel2 = ptRel;
-	  }else std::cout << "3rd close jet!" << std::endl;
-	}
-	continue;   // not ONLY checking the closest jet, but should be impossible for 2 to be that close...
-      }
+      if(deltaR < 0.8) continue;
+
       // ----------------------------------------------------------------------------      
       // Counters and pt ordering pair                                                     
       // ----------------------------------------------------------------------------   
@@ -817,7 +816,6 @@ void qWqW_NanoAnalysis::Loop(bool isSignal, bool isTTbar, Long64_t skipevents, L
     Jet_eta_ptordered.clear();
     Jet_phi_ptordered.clear();
     Jet_bdisc_ptordered.clear();
-    //ptOrderedJets.clear();
     listOfJetBDisc.clear();
     for(unsigned int ijet=0; ijet < jetptindpair.size(); ijet++){
       Jet_mass_ptordered.push_back(Jet_mass[jetptindpair[ijet].second]);
@@ -826,7 +824,6 @@ void qWqW_NanoAnalysis::Loop(bool isSignal, bool isTTbar, Long64_t skipevents, L
       Jet_phi_ptordered.push_back(Jet_phi[jetptindpair[ijet].second]);
       Jet_bdisc_ptordered.push_back(Jet_btagDeepB[jetptindpair[ijet].second]);
       listOfJetBDisc.push_back(Jet_btagDeepB[jetptindpair[ijet].second]);
-      //ptOrderedJets.push_back(std::make_pair(Jet_pt[jetptindpair[ijet].second],ijet));
     }
     std::sort(listOfJets.begin(),listOfJets.end(),sortinrev);
       
@@ -838,12 +835,14 @@ void qWqW_NanoAnalysis::Loop(bool isSignal, bool isTTbar, Long64_t skipevents, L
     FatJet_phi_ptordered.clear();
     FatJet_sj1_ptordered.clear();
     FatJet_sj2_ptordered.clear();
+    FatJet_tau21_ptordered.clear();
     for(unsigned int ijet=0; ijet < jetak8ptindpair.size(); ijet++){
       FatJet_sdmass_ptordered.push_back(FatJet_msoftdrop[jetak8ptindpair[ijet].second]);
       FatJet_mass_ptordered.push_back(FatJet_mass[jetak8ptindpair[ijet].second]);
       FatJet_pt_ptordered.push_back(FatJet_pt[jetak8ptindpair[ijet].second]);
       FatJet_eta_ptordered.push_back(FatJet_eta[jetak8ptindpair[ijet].second]);
       FatJet_phi_ptordered.push_back(FatJet_phi[jetak8ptindpair[ijet].second]);
+      FatJet_tau21_ptordered.push_back(FatJet_tau2[jetak8ptindpair[ijet].second]/FatJet_tau1[jetak8ptindpair[ijet].second]);
       FatJet_sj1_ptordered.push_back(FatJet_subJetIdx1[jetak8ptindpair[ijet].second]);
       FatJet_sj2_ptordered.push_back(FatJet_subJetIdx2[jetak8ptindpair[ijet].second]);
     }
@@ -861,8 +860,8 @@ void qWqW_NanoAnalysis::Loop(bool isSignal, bool isTTbar, Long64_t skipevents, L
       int sj2 = FatJet_sj2_ptordered[ijet];
       if(sj1 >= 0){
 	FatJet_index1_ptordered.push_back(nsubstotal); // 1 per fatjet, marks location in longer vecs of sj2 
-	SubJet_pt_fjordered.push_back(SubJet_pt[sj1]);
-	SubJet_mass_fjordered.push_back(SubJet_mass[sj1]);
+	SubJet_pt_fjordered.push_back(SubJet_pt[sj1]*(1 - SubJet_rawFactor[sj1]));
+	SubJet_mass_fjordered.push_back(SubJet_mass[sj1]*(1 - SubJet_rawFactor[sj1]));
 	SubJet_eta_fjordered.push_back(SubJet_eta[sj1]);
 	SubJet_phi_fjordered.push_back(SubJet_phi[sj1]);
 	SubJet_bdisc_fjordered.push_back(SubJet_btagDeepB[sj1]);
@@ -870,11 +869,11 @@ void qWqW_NanoAnalysis::Loop(bool isSignal, bool isTTbar, Long64_t skipevents, L
       }else{FatJet_index1_ptordered.push_back(-1);}
       if(sj2 >= 0){
 	FatJet_index2_ptordered.push_back(nsubstotal); // 1 per fatjet, marks location in longer vecs of sj2 
-	SubJet_pt_fjordered.push_back(SubJet_pt[sj1]);
-	SubJet_mass_fjordered.push_back(SubJet_mass[sj1]);
-	SubJet_eta_fjordered.push_back(SubJet_eta[sj1]);
-	SubJet_phi_fjordered.push_back(SubJet_phi[sj1]);
-	SubJet_bdisc_fjordered.push_back(SubJet_btagDeepB[sj1]);
+	SubJet_pt_fjordered.push_back(SubJet_pt[sj2]*(1 - SubJet_rawFactor[sj2]));
+	SubJet_mass_fjordered.push_back(SubJet_mass[sj2]*(1 - SubJet_rawFactor[sj2]));
+	SubJet_eta_fjordered.push_back(SubJet_eta[sj2]);
+	SubJet_phi_fjordered.push_back(SubJet_phi[sj2]);
+	SubJet_bdisc_fjordered.push_back(SubJet_btagDeepB[sj2]);
 	nsubstotal++;
       }else{FatJet_index2_ptordered.push_back(-1);}
     }
@@ -885,34 +884,57 @@ void qWqW_NanoAnalysis::Loop(bool isSignal, bool isTTbar, Long64_t skipevents, L
     // ----------------------------------------------------------------------------
 
     usesWtag = false;
+    FatJet_sdmassraw_ptordered.clear();
+    FatJet_sdmasscorr_ptordered.clear();
+    float mintau21 = 99;
+    int mintau21jet = -1;
+    TLorentzVector sj1_tlv;
+    TLorentzVector sj2_tlv;
     for(unsigned int ijet=0; ijet < FatJet_pt_ptordered.size(); ijet++){
 
-      if(!(FatJet_sdmass_ptordered[ijet] < 100 && FatJet_sdmass_ptordered[ijet] > 60)) continue;
-    
+      float genCorr  = 1.;
+      float recoCorr = 1.;
+      float totalWeight = 1.;      
+      genCorr =  puppisd_corrGEN->Eval(FatJet_pt_ptordered[ijet]);
+      if(fabs(FatJet_eta_ptordered[ijet]) <= 1.3 ) recoCorr = puppisd_corrRECO_cen->Eval(FatJet_pt_ptordered[ijet]);
+      else recoCorr = puppisd_corrRECO_for->Eval(FatJet_pt_ptordered[ijet]);      
+      totalWeight = genCorr * recoCorr;
+
+      int sj1 = FatJet_index1_ptordered[ijet];
+      int sj2 = FatJet_index2_ptordered[ijet];
+      if(sj1 < 0 || sj2 < 0){
+	FatJet_sdmassraw_ptordered.push_back(-1);
+	FatJet_sdmasscorr_ptordered.push_back(-1);
+	continue;
+      }
+
+      sj1_tlv.SetPtEtaPhiM(SubJet_pt_fjordered[sj1],SubJet_eta_fjordered[sj1],SubJet_phi_fjordered[sj1],SubJet_mass_fjordered[sj1]);
+      sj2_tlv.SetPtEtaPhiM(SubJet_pt_fjordered[sj2],SubJet_eta_fjordered[sj2],SubJet_phi_fjordered[sj2],SubJet_mass_fjordered[sj2]);
+
+      float sdmasscorr = (sj1_tlv+sj2_tlv).M()*totalWeight;
+      FatJet_sdmassraw_ptordered.push_back((sj1_tlv+sj2_tlv).M());
+      FatJet_sdmasscorr_ptordered.push_back(sdmasscorr);
+
+      if(!(sdmasscorr < 100 && sdmasscorr> 60)) continue;
+
+      if(FatJet_tau21_ptordered[ijet] < mintau21){
+	mintau21 = FatJet_tau21_ptordered[ijet];
+	mintau21jet = ijet;
+      }
+    }
+
+    TLorentzVector subjet1; 
+    TLorentzVector subjet2; 
+    if(mintau21jet > -1){
+
+      int ijet = mintau21jet;
       ak8_lv.SetPtEtaPhiM(FatJet_pt_ptordered[ijet],FatJet_eta_ptordered[ijet],FatJet_phi_ptordered[ijet],FatJet_mass_ptordered[ijet]);
+      subjet1.SetPtEtaPhiM(SubJet_pt[FatJet_sj1_ptordered[ijet]], SubJet_eta[FatJet_sj1_ptordered[ijet]], SubJet_phi[FatJet_sj1_ptordered[ijet]], SubJet_mass[FatJet_sj1_ptordered[ijet]]);
+      subjet2.SetPtEtaPhiM(SubJet_pt[FatJet_sj2_ptordered[ijet]], SubJet_eta[FatJet_sj2_ptordered[ijet]], SubJet_phi[FatJet_sj2_ptordered[ijet]], SubJet_mass[FatJet_sj2_ptordered[ijet]]);
     
       //--------Count overlapping AK4--------------
       //Find indexes of overlapping AK4s
-      TLorentzVector jet;
-      int numOverlapping=0;
-      vector<int> overlappingIndex;
-      float deltaR = -1;
-
-      for (int i = 0; i < listOfJets.size(); i++){
-        jet = listOfJets[i].second; 
-        deltaR = jet.DeltaR(ak8_lv);
-        if(deltaR < 0.8){
-	  numOverlapping++;
-	  overlappingIndex.push_back(i);
-        }
-      }
-      if(numOverlapping==0){
-        // cout<<"NO MATCHES WITHIN 0,8 FOUND!"<<endl;
-        noMatch++;
-        continue;
-      }
-        
-      //Find best of overlapping AK4s
+      TLorentzVector jet; // Jet currently checking for single
       TLorentzVector jet1; //Best of all the singles
       TLorentzVector jetPair1; //Best of all the pairs (first jet)
       TLorentzVector jetPair2; //Best of all the pairs (second jet)
@@ -923,53 +945,48 @@ void qWqW_NanoAnalysis::Loop(bool isSignal, bool isTTbar, Long64_t skipevents, L
 
       // Find the minimum DR for single jets
       float minDRsingle = 99999;
-      for (int i = 0; i < numOverlapping; i++){
-        jet = listOfJets[overlappingIndex[i]].second;
-	
+      for (int i = 0; i < listOfJets.size(); i++){
+        jet = listOfJets[i].second;        
 	if(jet.DeltaR(ak8_lv) < minDRsingle){
 	  minDRsingle = jet.DeltaR(ak8_lv);
 	  jet1 = jet;
-	  bestSingle = overlappingIndex[i];
+	  bestSingle = i;
 	}
       }
+
       // Find the minimum DR for a pair of jets
       float minDRpair = 99999;
-      for(int i = 0; i < numOverlapping; i++){
-	for(int j = i+1; j < numOverlapping; j++){
-	  jet = listOfJets[overlappingIndex[i]].second;
-	  testPair = listOfJets[overlappingIndex[j]].second;
+      for(int i = 0; i < listOfJets.size(); i++){
+	jet = listOfJets[i].second;
+	for(int j = i+1; j < listOfJets.size(); j++){
+	  testPair = listOfJets[j].second;
 	  
 	  if((jet+testPair).DeltaR(ak8_lv) < minDRpair){
 	    minDRpair = (jet+testPair).DeltaR(ak8_lv);
 	    jetPair1 = jet;
 	    jetPair2 = testPair;
-	    bestPair[0] = overlappingIndex[i];
-	    bestPair[1] = overlappingIndex[j];
+	    bestPair[0] = i;
+	    bestPair[1] = j;
 	  }
 	}
       }
-      bool isSingleJetBetter=false;
-      if(minDRsingle < minDRpair) isSingleJetBetter=true;
-
-      TLorentzVector subjet1; 
-      TLorentzVector subjet2; 
-      subjet1.SetPtEtaPhiM(SubJet_pt[FatJet_sj1_ptordered[ijet]], SubJet_eta[FatJet_sj1_ptordered[ijet]], SubJet_phi[FatJet_sj1_ptordered[ijet]], SubJet_mass[FatJet_sj1_ptordered[ijet]]);
-      subjet2.SetPtEtaPhiM(SubJet_pt[FatJet_sj2_ptordered[ijet]], SubJet_eta[FatJet_sj2_ptordered[ijet]], SubJet_phi[FatJet_sj2_ptordered[ijet]], SubJet_mass[FatJet_sj2_ptordered[ijet]]);
     
       if (minDRsingle <= minDRpair && minDRsingle < 0.05){
 	usesWtag = true;
         overlap1++;
-        isSingleJetBetter=true;
+	
         listOfJetBDisc.erase(listOfJetBDisc.begin()+bestSingle);
         listOfJets.erase(listOfJets.begin()+bestSingle);
         listOfJetBDisc.push_back(SubJet_btagDeepB[FatJet_sj1_ptordered[ijet]]);
         listOfJetBDisc.push_back(SubJet_btagDeepB[FatJet_sj2_ptordered[ijet]]);
         listOfJets.push_back(std::make_pair(nJet+1, subjet1));
         listOfJets.push_back(std::make_pair(nJet+2, subjet2));
+
       }
       else if (minDRsingle > minDRpair && minDRpair < 0.05){
 	usesWtag = true;
         overlap2++;
+
         listOfJetBDisc.erase(listOfJetBDisc.begin()+bestPair[1]);
         listOfJetBDisc.erase(listOfJetBDisc.begin()+bestPair[0]);
         listOfJets.erase(listOfJets.begin()+bestPair[1]);
@@ -978,43 +995,9 @@ void qWqW_NanoAnalysis::Loop(bool isSignal, bool isTTbar, Long64_t skipevents, L
         listOfJetBDisc.push_back(SubJet_btagDeepB[FatJet_sj2_ptordered[ijet]]);
         listOfJets.push_back(std::make_pair(nJet+1, subjet1));
         listOfJets.push_back(std::make_pair(nJet+2, subjet2));
-      }
-      else{
-	//cout<<"---------------------No Good Match Found!-------------------------------------"<<endl;
-        noGoodMatch++;
-        // if (isSingleJetBetter){
-	//   cout<<"Single at index "<<bestSingle<<" jet was better with a deltaR of: "<<minDRsingle<<endl;
-	//   cout<<"This jet had eta: "<< jet1.Eta() <<" and phi of: "<<jet1.Phi()<<endl;
-        // }
-        // else{
-	//   cout<<"Pair was better with a deltaR of: " << minDRpair <<endl;
-	//   cout<<"First jet at index "<<bestPair[0] <<" had eta: "<<jetPair1.Eta()<<" and phi of "<<jetPair1.Phi()<<endl;
-	//   cout<<"Second jet at index "<<bestPair[1] <<" had eta: "<<jetPair2.Eta()<<" and phi of "<<jetPair2.Phi()<<endl;
-        // }
-      }
 
-      // THIS PART WILL BE BROKEN, need to index from listOfJets or Jet_pt_ptordered instead of straight Jet
-      // But it seems to be just a cross check, so fix if the previous printouts are not enough.
-      // cout<<"AK8 Jet has eta "<<ak8_lv.Eta()<<" and phi of "<<ak8_lv.Phi()<<endl;
-      // if(numOverlapping > 1){
-      //   cout<< "Possible Single Matching AK4s:"<<endl;
-      //   for(int i = 0; i < numOverlapping; i++){
-      // 	  testPair.SetPtEtaPhiM(Jet_pt[overlappingIndex[i]],Jet_eta[overlappingIndex[i]],Jet_phi[overlappingIndex[i]],Jet_mass[overlappingIndex[i]]);
-      // 	  cout<<"Jet at index "<<overlappingIndex[i]<<" had eta: "<< testPair.Eta() <<" and phi of: "<<testPair.Phi()<<endl;
-      //   }
-      //   cout <<"Possible Pairs of AK4s:"<<endl;
-      //   for(int i=0;i<numOverlapping;i++){
-      // 	 testPair.SetPtEtaPhiM(Jet_pt[overlappingIndex[i]],Jet_eta[overlappingIndex[i]],Jet_phi[overlappingIndex[i]],Jet_mass[overlappingIndex[i]]);
-      // 	 for(int j=(i+1);j<numOverlapping;j++){
-      // 	   testPair2.SetPtEtaPhiM(Jet_pt[overlappingIndex[j]],Jet_eta[overlappingIndex[j]],Jet_phi[overlappingIndex[j]],Jet_mass[overlappingIndex[j]]);
-      // 	   cout<<"Pair of Jets with indexes "<<overlappingIndex[i]<<" and "<<overlappingIndex[j]<<" had eta: "<<(testPair+testPair2).Eta()<<" and phi of: "
-      // 	       <<(testPair+testPair2).Phi()<<endl;
-      // 	 }
-      //   }
-      // }
-      // else cout<<"There was only one overlapping jet."<<endl; 
-      // cout<<"--------------------------------------------------------------------------------"<<endl;
-    }     
+      }
+    }   
 
     // ------------------------------
     // Find pt ordering of new list
@@ -1022,15 +1005,10 @@ void qWqW_NanoAnalysis::Loop(bool isSignal, bool isTTbar, Long64_t skipevents, L
 
     ptOrderedJets.clear();
     for (unsigned int ijet = 0; ijet < listOfJets.size(); ijet++){
-      //cout << "Cross check A, pt = " << listOfJets[ijet].second.Pt() << ", ijet = " << ijet << endl;
       ptOrderedJets.push_back(std::make_pair(listOfJets[ijet].second.Pt(),ijet));
     }
     std::sort(ptOrderedJets.begin(), ptOrderedJets.end(), sortinrev2);
  
-    // for (unsigned int ijet = 0; ijet < ptOrderedJets.size(); ijet++){
-    //   cout << "Cross check B, pt = " << ptOrderedJets[ijet].first << ", listOfJets ind = " << ptOrderedJets[ijet].second << endl;
-    // }
-    
 
     // ----------------------------------------------------------------------------
     // Check the hybrid jet list
@@ -1071,200 +1049,224 @@ void qWqW_NanoAnalysis::Loop(bool isSignal, bool isTTbar, Long64_t skipevents, L
     HybridJet_eta.clear();
     HybridJet_phi.clear();
     HybridJet_mass.clear();
-    if(passHitFitJetPt){
-      passHitFitJetCut += 1;
+
+    fittedJetPt.clear();
+    fittedJetEta.clear();
+    fittedJetPhi.clear();
+    fittedJetMass.clear();
+    fittedLepPt =-9;
+    fittedLepEta=-9;
+    fittedLepPhi=-9;
+    fittedLepMass=-9;
+    fittedMETPt =-9;
+    fittedMETEta=-9;
+    fittedMETPhi=-9;
+    fittedMETMass=-9;
+    tMass = -9;
+    chi2 = 999;
+    probchi2 = -9;
+    sigmaM = 0;
+
     
-      // ------------------------------------------------------------------
-      // HITFIT
-      // ------------------------------------------------------------------
-      //      cout<<"----------------Starting HitFit-----------------------------"<<endl;
+    if(passHitFitJetPt) passHitFitJetCut += 1;
+    
+    // ------------------------------------------------------------------
+    // HITFIT
+    // ------------------------------------------------------------------
+    
+    //Clear internal state
+    HitFit.clear();
+    
+    //Add lepton, jets, met
+    HitFit.AddLepton(lepton_lv,isElectron);
+    nJetsHitFit = ptOrderedJets.size();
+    for(int i=0;(i < ptOrderedJets.size() && i < 5);i++){
+      int isSubJet = 0;
+      if(listOfJets[ptOrderedJets[i].second].first>nJet) isSubJet=1;
+      HitFit.AddJet(listOfJets[ptOrderedJets[i].second].second,isSubJet);
       
-      //Clear internal state
-      HitFit.clear();
+      HybridJet_pt.push_back(listOfJets[ptOrderedJets[i].second].second.Pt());
+      HybridJet_eta.push_back(listOfJets[ptOrderedJets[i].second].second.Eta());
+      HybridJet_phi.push_back(listOfJets[ptOrderedJets[i].second].second.Phi());
+      HybridJet_mass.push_back(listOfJets[ptOrderedJets[i].second].second.M());
+    }
+    double px = MET_pt * cos(MET_phi);
+    double py = MET_pt * sin(MET_phi);
+    HitFit.SetMet(px,py);
+    
+    //Number of all permutation of the event
+    size_t nHitFit = 0;
+    nHitFit = HitFit.FitAllPermutation();
+    
+    std::vector<hitfit::Fit_Result> hitfitResult = HitFit.GetFitAllPermutation();
+    
+    // mass of the top quark after fit
+    std::vector<double> fittedTopMass;
+    
+    // the chi-square of the fit
+    // a negative value means the fit of a particular permutation did not converge
+    std::vector<double> fitChi2;
+    
+    float minChisq2M = 1e9;
+    float minChisqML = 1e9;
+    float minChisq1M = 1e9;
+    float minChisqBadFit = 1e9;
+    int indexMinChisq2M = -1;
+    int indexMinChisqML = -1;
+    int indexMinChisq1M = -1;
+    int indexMinChisqBadFit=-1;
+    double SLST [nHitFit];
+    
+    //cout << "HITFIT returned " << nHitFit << " fits" << endl;
+    for (size_t fit = 0 ; fit != nHitFit ; ++fit) {
+      ntotal++;
+      hitfit::Lepjets_Event fittedEvent = hitfitResult[fit].ev();
+      double fittedST =0;
+      double fittedSL = 0;
+      bool badFit =false;
+      bool badFitST = false;
+      bool badFitMW = false;
+      bool badFitMW2 = false;
+      bool badFitB = false;
+      bool badFitSL = false;
+      bool badFitJet1 = false;
+      bool badFitJet2 = false;
+      bool badFitJet3 = false;
+      double WMass=0;
+      double fittedWMass = 0;
+      double st=0;
+      TLorentzVector Wjet;
+      Fourvec fittedWjet;
+      int firstWindex = -1;
+      int secondWindex = -1;
+      float highWpt = 0;
+      int bTagM=0;
+      int bTagL=0;
       
-      //Add lepton
-      HitFit.AddLepton(lepton_lv,isElectron);
-      //cout <<"Adding Letpon with pt: "<<lepton_lv.Pt()<<", eta: " << lepton_lv.Eta()<<", and phi: " << lepton_lv.Phi()<<endl; 
-      //Add Jets
-      nJetsHitFit = ptOrderedJets.size();
-      for(int i=0;i<ptOrderedJets.size();i++){
-	HitFit.AddJet(listOfJets[ptOrderedJets[i].second].second);
-	HybridJet_pt.push_back(listOfJets[ptOrderedJets[i].second].second.Pt());
-	HybridJet_eta.push_back(listOfJets[ptOrderedJets[i].second].second.Eta());
-	HybridJet_phi.push_back(listOfJets[ptOrderedJets[i].second].second.Phi());
-	HybridJet_mass.push_back(listOfJets[ptOrderedJets[i].second].second.M());
-	//cout <<"Adding Jet with pt: "<<listOfJets[ptOrderedJets[i].second].second.Pt()<<", eta: " << listOfJets[ptOrderedJets[i].second].second.Eta()<<", and phi: " << listOfJets[ptOrderedJets[i].second].second.Phi()<<endl; 
+      vector<int> jetTypes = hitfitResult[fit].jet_types();
+      //cout << "--------------" << endl;
+      for(int i=0;i<jetTypes.size();i++){	  
+	if (jetTypes[i]==11){  // leptonic b
+	  if (listOfJetBDisc[ptOrderedJets[i].second] > 0.4184) bTagM++;
+	  else if (listOfJetBDisc[ptOrderedJets[i].second] > 0.1241) bTagL++;
+	  st = st+listOfJets[ptOrderedJets[i].second].second.Pt();
+	  fittedST = fittedST + fittedEvent.jet(i).p().perp();
+	  fittedSL = fittedSL + fittedEvent.jet(i).p().pz();
+	}
+	else if (jetTypes[i]==12){ // hadronic b
+	  if (listOfJetBDisc[ptOrderedJets[i].second] > 0.4184) bTagM++;
+	  else if (listOfJetBDisc[ptOrderedJets[i].second] > 0.1241) bTagL++;
+	  st = st+listOfJets[ptOrderedJets[i].second].second.Pt();
+	  fittedST = fittedST + fittedEvent.jet(i).p().perp();
+	  fittedSL = fittedSL + fittedEvent.jet(i).p().pz();
+	}
+	else if(jetTypes[i]==13 || jetTypes[i]==14){	    // hadronic W jets.
+	  if (firstWindex < 0){
+	    fittedWjet = fittedEvent.jet(i).p();
+	    Wjet = listOfJets[ptOrderedJets[i].second].second;
+	    firstWindex = i;
+	  }
+	  else{
+	    secondWindex = i;
+	    fittedWMass = (fittedWjet + fittedEvent.jet(i).p()).m();
+	    WMass = (Wjet+listOfJets[ptOrderedJets[i].second].second).M();
+	  }
+	}
       }
-      //Adding MET
-      double px = MET_pt * sin(MET_phi);
-      double py = MET_pt * cos(MET_phi);
-      HitFit.SetMet(px,py);
-      //cout<< "Adding MET with px: "<<px<<", and py: "<<py<<endl;
+      st = st+listOfJets[ptOrderedJets[firstWindex].second].second.Pt()+listOfJets[ptOrderedJets[secondWindex].second].second.Pt();
+      fittedST = fittedST + fittedEvent.jet(firstWindex).p().perp() + fittedEvent.jet(secondWindex).p().perp();
+      fittedSL = fittedSL + fittedEvent.jet(firstWindex).p().pz() + fittedEvent.jet(secondWindex).p().pz();
       
+      jetTypes.clear();
+      st = st + MET_pt + lepton_lv.Pt(); 
+      fittedST = fittedST + fittedEvent.lep(0).p().perp() + fittedEvent.met().perp();
+      fittedSL = fittedSL + fittedEvent.lep(0).p().pz() + fittedEvent.met().pz();
+      SLST[fit]=fittedSL/fittedST;
+
+      if (bTagM < 1){badFitB=true; badFit = true;}       
+      if (fittedSL/fittedST >= 1.1){badFitSL=true; badFit = true;}     
+      if(hitfitResult[fit].chisq() < 0) badFit = true;
       
-      //Number of all permutation of the event
-      size_t nHitFit = 0;
-      nHitFit = HitFit.FitAllPermutation();
-      //cout<<"There were "<<nHitFit<< " permutations"<<endl;
-      std::vector<hitfit::Fit_Result> hitfitResult;
-      hitfitResult    = HitFit.GetFitAllPermutation();
+      if (badFit==true){
+	nfailed++;
+	if(hitfitResult[fit].chisq()==-999){num999++;}
+	else if(hitfitResult[fit].chisq()==-998){num998++;}
+	else if(hitfitResult[fit].chisq()==-997){num997++;}
+	else if(hitfitResult[fit].chisq()==-996){num996++;}
+	else if(hitfitResult[fit].chisq()==-995){num995++;}
+	if(badFitJet1) numLowHadB++;
+	if(badFitJet2) numLowLepB++;
+	if(badFitJet3) numLowHadW++;
+	if(badFitST) numLowST++;
+	if(badFitMW) numBadW++;
+	if(badFitMW2) numBadW2++;
+	if(badFitB) numLowNB++;
+	if(badFitSL) numBadSLST++;
+      }else ngood++;
       
-      // mass of the top quark after fit
-      std::vector<double> fittedTopMass;
-      
-      // the chi-square of the fit
-      // a negative value means the fit of a particular permutation did not converge
-      std::vector<double> fitChi2;
-      float minChisq = 1000000000;
-      int indexMinChisq=-1;
-      float minChisqBadFit =1000000000;
-      int indexMinChisqBadFit=-1;
-      int bTag=0;
-      int numBadFits=0;
-      double SLST [nHitFit];//= new double[nHitFit]; 
-      //cout << "HITFIT returned " << nHitFit << " fits" << endl;
-      for (size_t fit = 0 ; fit != nHitFit ; ++fit) {
-	ntotal++;
-	hitfit::Lepjets_Event fittedEvent = hitfitResult[fit].ev();
-	double fittedST =0;
-	double fittedSL = 0;
-	bool badFit =false;
-	bool badFitST = false;
-	bool badFitMW = false;
-	bool badFitMW2 = false;
-	bool badFitB = false;
-	bool badFitSL = false;
-	bool badFitJet1 = false;
-	bool badFitJet2 = false;
-	bool badFitJet3 = false;
-	// cout << " -------------------" << endl;
-	// cout<<"\t Permutation "<<fit<<" had top quark mass ";
-	// cout<<"\t" << hitfitResult[fit].mt()<< " with a sigma of "<<hitfitResult[fit].sigmt()<<endl;
-	// cout<<"\t The chi squared value was: "<<hitfitResult[fit].chisq()<<endl;
-	vector<int> jetTypes = hitfitResult[fit].jet_types();
-	double WMass=0;
-	double fittedWMass = 0;
-	double st=0;
-	TLorentzVector Wjet;
-	Fourvec fittedWjet;
-	int firstWindex = -1;
-	int secondWindex = -1;
-	float highWpt = 0;
-	//cout << "--------------" << endl;
-	for(int i=0;i<jetTypes.size();i++){	  
-	  //cout << "Checking: jet type = " << jetTypes[i] << ", size = " << jetTypes.size() << endl;
-	  if (jetTypes[i]==11){  // leptonic b
-	    if (listOfJets[ptOrderedJets[i].second].second.Pt()<100){badFit=true; badFitJet2=true;} // could move inside permutation finder
-	    if (listOfJetBDisc[ptOrderedJets[i].second] > 0.4184) bTag+=2;
-	    else if (listOfJetBDisc[ptOrderedJets[i].second] > 0.1241) bTag++;
-	    st = st+listOfJets[ptOrderedJets[i].second].second.Pt();
-	    fittedST = fittedST + fittedEvent.jet(i).p().perp();
-	    fittedSL = fittedSL + fittedEvent.jet(i).p().pz();
-	  }
-	  else if (jetTypes[i]==12){ // hadronic b
-	    if (listOfJets[ptOrderedJets[i].second].second.Pt()<200){badFit=true; badFitJet1=true;} // could move inside permutation finder
-	    if (listOfJetBDisc[ptOrderedJets[i].second] > 0.4184) bTag+=2;
-	    else if (listOfJetBDisc[ptOrderedJets[i].second] > 0.1241) bTag++;
-	    st = st+listOfJets[ptOrderedJets[i].second].second.Pt();
-	    fittedST = fittedST + fittedEvent.jet(i).p().perp();
-	    fittedSL = fittedSL + fittedEvent.jet(i).p().pz();
-	  }
-	  else if(jetTypes[i]==13 || jetTypes[i]==14){	    // hadronic W jets. NEED TO BE A SUBJET PAIR IF POSSIBLE, should put inside permutation finder
-	    if (listOfJets[ptOrderedJets[i].second].second.Pt() > highWpt) highWpt = listOfJets[ptOrderedJets[i].second].second.Pt();
-	    if (firstWindex < 0){
-	      fittedWjet = fittedEvent.jet(i).p();
-	      Wjet = listOfJets[ptOrderedJets[i].second].second;
-	      firstWindex = i;
+      if (hitfitResult[fit].chisq() >= 0){
+	if(!badFit){
+	  if(bTagM == 2 && bTagL == 0){
+	    good2M++;
+	    if( hitfitResult[fit].chisq() < minChisq2M){
+	      minChisq2M = hitfitResult[fit].chisq();
+	      indexMinChisq2M = fit;
 	    }
-	    else{
-	      secondWindex = i;
-	      fittedWMass = (fittedWjet + fittedEvent.jet(i).p()).m();
-	      WMass = (Wjet+listOfJets[ptOrderedJets[i].second].second).M();
+	  }else if(bTagM == 1 && bTagL == 1){
+	    goodML++;
+	    if(hitfitResult[fit].chisq() < minChisqML){
+	      minChisqML = hitfitResult[fit].chisq();
+	      indexMinChisqML = fit;
 	    }
-	  }
-	}
-	if (highWpt < 100){badFit = true; badFitJet3 = true;} // could move inside permutation finder
-	else{
-	  st = st+listOfJets[ptOrderedJets[firstWindex].second].second.Pt()+listOfJets[ptOrderedJets[secondWindex].second].second.Pt();
-	  fittedST = fittedST + fittedEvent.jet(firstWindex).p().perp() + fittedEvent.jet(secondWindex).p().perp();
-	  fittedSL = fittedSL + fittedEvent.jet(firstWindex).p().pz() + fittedEvent.jet(secondWindex).p().pz();
-	}
-
-	jetTypes.clear();
-	st = st + MET_pt + lepton_lv.Pt(); 
-	if(st<=1000){badFitST=true; badFit=true;} // could move inside permutation finder
-	if(WMass<60 || WMass>100){badFitMW=true; badFit = true;} // could move inside permutation finder
-	if (hitfitResult[fit].umwhad() < 60 || hitfitResult[fit].umwhad() > 100){ badFitMW2 = true; badFit = true;}
-	if (bTag<2){badFitB=true; badFit = true;} // easier outside since it's more than 4-vec info
-
-	fittedST = fittedST + fittedEvent.lep(0).p().perp() + fittedEvent.met().perp();
-	fittedSL = fittedSL + fittedEvent.lep(0).p().pz() + fittedEvent.met().pz();
-	SLST[fit]=fittedSL/fittedST;
-	if (fittedSL/fittedST >= 1.5){badFitSL=true; badFit = true;}
-
-	if (badFit==true){
-	  if(badFitJet1) numLowHadB++; //cout << "Bad fit: Jet1 too low" << endl;
-	  if(badFitJet2) numLowLepB++; //cout << "Bad fit: Jet2 too low" << endl;
-	  if(badFitJet3) numLowHadW++; //cout << "Bad fit: Jet3 too low" << endl;
-	  if(badFitST) numLowST++; //cout << "Bad fit: ST = " << st << endl;
-	  if(badFitMW) numBadW++; //cout << "Bad fit: MW = " << WMass << ", checking fitted: " << fittedWMass << endl;
-	  if(badFitMW2) numBadW2++; //cout << "Bad fit: MW = " << WMass << ", checking fitted: " << fittedWMass << endl;
-	  if(badFitB) numLowNB++; //cout << "Bad fit: Nbtag = " << bTag << endl;
-	  if(badFitSL) numBadSLST++; //cout << "Bad fit: SL/ST = " << fittedSL/fittedST << endl; 
-	  numBadFits++; 
-	}
-	
-	if (hitfitResult[fit].chisq()>=0){
-	  if(!badFit && hitfitResult[fit].chisq()<minChisq){
-	    minChisq = hitfitResult[fit].chisq();
-	    indexMinChisq = fit;
-	  }else if(badFit && hitfitResult[fit].chisq()<minChisqBadFit){
+	  }else if(bTagM == 1 && bTagL == 0){
+	    good1M++;
+	    if(hitfitResult[fit].chisq() < minChisqML){
+	      minChisq1M = hitfitResult[fit].chisq();
+	      indexMinChisq1M = fit;
+	    }
+	  }else cout << "GOT WEIRD TAGS: btagM = " << bTagM << ", btagL = " << bTagL << endl;
+	}else{
+	  if(hitfitResult[fit].chisq() < minChisqBadFit){
 	    minChisqBadFit = hitfitResult[fit].chisq();
 	    indexMinChisqBadFit = fit;
 	  }
 	}
-	if(hitfitResult[fit].chisq()<0){
-	  //cout << "Negative chisg In Event "<< jentry << " Chi squared is: " << hitfitResult[fit].chisq() <<endl;
-	  if(hitfitResult[fit].chisq()==-999){num999++;}
-	  else if(hitfitResult[fit].chisq()==-998){num998++;}
-	  else if(hitfitResult[fit].chisq()==-997){num997++;}
-	  else if(hitfitResult[fit].chisq()==-996){num996++;}
-	  else if(hitfitResult[fit].chisq()==-995){num995++;}
-	}
-	
       }
-      
-      float probChisq = exp(-0.5 * minChisq);
-      if(probChisq > 0.001) passProbChisq++;
-
-      tMass = -1;
-      chi2 = 999;
-      sigmaM = 0;
-      if(indexMinChisq > 0){
-	passAnyChi2 += 1;
-	chi2 =hitfitResult[indexMinChisq].chisq();
-	tMass = hitfitResult[indexMinChisq].mt();
-	sigmaM = hitfitResult[indexMinChisq].sigmt();
-	SLDivideST = SLST[indexMinChisq];
-	// cout<<"In Event "<<jentry<<": "<<endl;
-	// cout<<"The min chi squared value was: "<<hitfitResult[indexMinChisq].chisq()<<endl;
-	// cout<<"It happened at permutation "<<indexMinChisq<<" and had top quark mass ";
-	// cout<<hitfitResult[indexMinChisq].mt()<< " with a sigma of "<<hitfitResult[indexMinChisq].sigmt()<<endl;
-	// cout<<"There were "<<numBadFits<<" combinations that were dropped."<<endl;
-      }else if(indexMinChisqBadFit > 0){
-	chi2 =hitfitResult[indexMinChisqBadFit].chisq();
-	tMass = hitfitResult[indexMinChisqBadFit].mt();
-	sigmaM = hitfitResult[indexMinChisqBadFit].sigmt();
-	SLDivideST = SLST[indexMinChisqBadFit];
-	// cout<<"All fits were bad, but in this event, event "<<jentry<<": "<<endl;
-	// cout<<"The min chi squared value was: "<<hitfitResult[indexMinChisqBadFit].chisq()<<endl;
-	// cout<<"It happened at permutation "<<indexMinChisqBadFit<<" and had top quark mass ";
-	// cout<<hitfitResult[indexMinChisq].mt()<< " with a sigma of "<<hitfitResult[indexMinChisqBadFit].sigmt()<<endl;
-	// cout<<"There were "<<numBadFits<<" combinations that were dropped."<<endl;
-      }   
-   
-      //      Cout<<"-------------------Finished HitFit----------------------------"<<endl;
     }
+    
+    int indexMinChisq = -1;
+    if(indexMinChisq2M > -1) indexMinChisq = indexMinChisq2M;
+    else if(indexMinChisqML > -1) indexMinChisq = indexMinChisqML;
+    else if(indexMinChisq1M > -1) indexMinChisq = indexMinChisq1M;
+    
+    if(indexMinChisq > 0){
+      passAnyChi2 += 1;
+      probchi2 = exp(-0.5 * hitfitResult[indexMinChisq].chisq());
+      if(probchi2 > 0.001) passProbChisq++;
+      
+      chi2 = hitfitResult[indexMinChisq].chisq();
+      tMass = hitfitResult[indexMinChisq].mt();
+      sigmaM = hitfitResult[indexMinChisq].sigmt();
+      SLDivideST = SLST[indexMinChisq];
+      fittedLepPt = hitfitResult[indexMinChisq].ev().lep(0).p().perp();
+      fittedLepEta = hitfitResult[indexMinChisq].ev().lep(0).p().eta();
+      fittedLepPhi = hitfitResult[indexMinChisq].ev().lep(0).p().phi();
+      fittedLepMass = hitfitResult[indexMinChisq].ev().lep(0).p().m();
+      fittedMETPt =  hitfitResult[indexMinChisq].ev().met().perp();
+      fittedMETEta = hitfitResult[indexMinChisq].ev().met().eta();
+      fittedMETPhi = hitfitResult[indexMinChisq].ev().met().phi();
+      fittedMETMass = hitfitResult[indexMinChisq].ev().met().m();
+      vector<int> jetTypes = hitfitResult[indexMinChisq].jet_types();
+      if(jetTypes.size() < 4) cout << "WEIRD FITTED JET TYPES: " << jetTypes.size() << endl;
+      for (int i=0;i<jetTypes.size();i++){	 
+	if(jetTypes[i]==11 || jetTypes[i]== 12 || jetTypes[i]== 13 || jetTypes[i]== 14 ){	    	    
+	  fittedJetPt.push_back(hitfitResult[indexMinChisq].ev().jet(i).p().perp());
+	  fittedJetEta.push_back(hitfitResult[indexMinChisq].ev().jet(i).p().eta());
+	  fittedJetPhi.push_back(hitfitResult[indexMinChisq].ev().jet(i).p().phi());
+	  fittedJetMass.push_back(hitfitResult[indexMinChisq].ev().jet(i).p().m());
+	}
+      }
+    }   
 
     // -------------------------------------------------------------------
     // Adding Masses
@@ -1308,10 +1310,6 @@ void qWqW_NanoAnalysis::Loop(bool isSignal, bool isTTbar, Long64_t skipevents, L
     }
     threeJetMass =0;
     if(num3Jets>0){threeJetMass = sum3JetMass/num3Jets;}
-    if (jentry%10000 < 10){
-      //         cout << "Jet+Lepton+MET Mass is: "<<totalMass<<endl;
-      //         cout << "Average 3 Jet Mass is: " <<threeJetMass<<endl;
-    }
     
     //Counting events
     if (isElectron){numEventsElectron++;}
@@ -1332,9 +1330,6 @@ void qWqW_NanoAnalysis::Loop(bool isSignal, bool isTTbar, Long64_t skipevents, L
   cout << "Pass bWbW Cut: "<<passbwbw<<endl;
   cout << "Pass isoTrack Cut: "<<passIso<<endl;
   cout << "Pass flag Cut: " <<passflag<<endl;
-  //  cout << "Pass Electron Tight and Loose: "<< passLooseEl <<endl;
-  //  cout << "Pass Electron Tight and Loose Without Tight Muons: "<< passTightEl <<endl;
-  //  cout << "Pass Electron Without Muons: "<< passElAll <<endl;
   cout << "Pass Lepton: "<<passLepton<<endl;
   cout << "\t Pass Electron: "<<passEl << endl;
   cout << "\t Pass Muon: "<<passMu<<endl;
@@ -1342,26 +1337,14 @@ void qWqW_NanoAnalysis::Loop(bool isSignal, bool isTTbar, Long64_t skipevents, L
   cout << "Pass MET Cut: "<<passMET<<endl;
   cout << "Pass Jet Count Cut: "<<passJetCut<<endl;
 
-  // cout << "\t Pass Electron Jet Size >=4  Cut: "<<passElAll3<<endl;
-  // cout << "\t Pass Muon Jet Size >=4 Cut: "<<passMuAll3 <<endl;
-  // cout << "\t Pass Electron JetPT >100  Cut: "<<passElAll<<endl;
-  // cout << "\t Pass Muon JetPT >100 Cut: "<<passMuAll <<endl;
-  // cout << "\t Pass Electron Jet2PT >70  Cut: "<<passElAll2<<endl;
-  // cout << "\t Pass Muon Jet2PT >70 Cut: "<<passMuAll2 <<endl;
-  
   cout << "Pass Hybrid Jet List Cuts (AND of previous 3): "<<passHybridJetCut<<endl;
   cout << "\t Number of passed Muon events: " << numEventsMuon << endl;
   cout << "\t Number of passed Electron events: " << numEventsElectron << endl;
   cout << "Pass HITFIT Jet List Cuts (200,100,100): " << passHitFitJetCut<<endl;
-  /*
-     cout << "Number of events with 1 AK4 Jet closely overlapping the AK8 Jet: "<<overlap1<<endl;
-     cout << "Number of events with 2 AK4 Jets closely overlapping the AK8 Jet: " << overlap2 << endl;
-     cout << "Number of AK8 Jets with no AK4 Jets within 0.8: "<<noMatch<<endl;
-     cout << "Number of AK8 Jets with no Ak4 Jet or pair of AK4 Jets within 0.05: "<<noGoodMatch<<endl;
-  */
   cout << "Number of events with Prob(chi squared) > 0.1%: "<<passProbChisq<<endl; 
   cout << "Number of events with any chi2 > 0: " <<passAnyChi2<<endl;
-  cout << "Number of fits failed HITFIT out of: "<<ntotal << endl;
+  cout << "Number of fits failed HITFIT out of: "<<ntotal << " = " << nfailed << endl;
+
   cout << "\t -998: "<<num998<< "/" << ntotal << endl;
   cout << "\t -997: "<<num997<< "/" << ntotal << endl;
   cout << "\t -996: "<<num996<< "/" << ntotal << endl;
@@ -1374,5 +1357,9 @@ void qWqW_NanoAnalysis::Loop(bool isSignal, bool isTTbar, Long64_t skipevents, L
   cout << "\t bad umwhad from HF: : "<<numBadW2<< "/" << ntotal << endl;
   cout << "\t low btags: : "<<numLowNB<< "/" << ntotal << endl;
   cout << "\t bad SL/ST: : "<<numBadSLST<< "/" << ntotal << endl;
+  cout << "Number of fits passed HITFIT out of: " <<ntotal << " = " << ngood << endl;
+  cout << "\t good 2M: "<<good2M<<"/"<<ntotal << endl;
+  cout << "\t good ML: "<<goodML<<"/"<<ntotal << endl;
+  cout << "\t good 1M: "<<good1M<<"/"<<ntotal << endl;
    
 }

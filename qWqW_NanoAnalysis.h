@@ -11,6 +11,7 @@
 #include <TROOT.h>
 #include <TChain.h>
 #include <TFile.h>
+#include <TF1.h>
 
 // Header file for the classes stored in the TTree if any.
 
@@ -18,6 +19,7 @@ class qWqW_NanoAnalysis {
 public :
    TTree          *fChain;   //!pointer to the analyzed TTree or TChain
    Int_t           fCurrent; //!current Tree number in a TChain
+
 
 // Fixed size dimensions of array or collections stored in the TTree if any.
 
@@ -2583,6 +2585,8 @@ qWqW_NanoAnalysis::qWqW_NanoAnalysis(TString inputFileName, TString outputFile) 
 
    }
    Init(tree);
+
+
 }
 
 qWqW_NanoAnalysis::~qWqW_NanoAnalysis()
